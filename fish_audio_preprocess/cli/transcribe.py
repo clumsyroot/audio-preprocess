@@ -1,4 +1,4 @@
-import multiprocessing as mp
+ import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 
 import click
@@ -6,7 +6,7 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from fish_audio_preprocess.utils.file import AUDIO_EXTENSIONS, list_files, split_list
+from fish_audio_preprocess.utils.file import AUDIO_EXTENSIONS, list_files, split_list, split_list_m
 from fish_audio_preprocess.utils.transcribe import ASRModelType, batch_transcribe
 
 
@@ -15,7 +15,25 @@ def replace_lastest(string, old, new):
 
 
 @click.command()
-@click.argument("input_dir", type=click.Path(exists=True, file_okay=False))
+@click.argument("--source", type=click.Choice(["file", "dir"], case_sensitive=False))
+# @click.argument("input_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--file",
+    help="File path which saved wav list",
+    type=str,
+)
+@click.option(
+    "--dir",
+    help="dir path which saved wav list",
+    type=str,
+)
+@click.option(
+    "--chunk-size",
+    help="chunk size, defaults to 200000",
+    default=200000,
+    show_default=True,
+    type=int,
+)
 @click.option(
     "--num-workers",
     help="Number of workers to use for processing, defaults to 2",
@@ -50,8 +68,11 @@ def replace_lastest(string, old, new):
     show_default=True,
 )
 def transcribe(
+    source: str,
+    file_list: str,
     input_dir: str,
     num_workers: int,
+    chunk_size: int,
     lang: str,
     model_size: str,
     recursive: bool,
@@ -78,40 +99,49 @@ def transcribe(
             "To speed up, use a GPU enabled machine or install torch with cuda builtin."
         )
     logger.info(f"Using {num_workers} workers for processing")
-    logger.info(f"Transcribing audio files in {input_dir}")
-    # 扫描出所有的音频文件
-    audio_files = list_files(input_dir, recursive=recursive)
-    audio_files = [str(file) for file in audio_files if file.suffix in AUDIO_EXTENSIONS]
+    if source == "file":
+        logger.info(f"Transcribing audio files in '{file_list}'")
+        # 扫描出所有的音频文件
+        audio_files = [line.strip() for line in open(file_list, "r", encoding="UTF8").readlines()]
+    elif source == "dir":
+        logger.info(f"Transcribing audio files in '{input_dir}'")
+        # 扫描出所有的音频文件
+        audio_files = list_files(input_dir, recursive=recursive)
+        audio_files = [str(file) for file in audio_files if file.suffix in AUDIO_EXTENSIONS]
 
     if len(audio_files) == 0:
-        logger.error(f"No audio files found in {input_dir}.")
+        logger.error(f"No audio files found in source.")
         return
 
     # 按照 num workers 切块
-    chunks = split_list(audio_files, num_workers)
+    chunks = split_list_m(audio_files, chunk_size)
+    logger.info(f"splited to '{len(chunks)}'")
 
-    with ProcessPoolExecutor(mp_context=mp.get_context("spawn")) as executor:
-        tasks = []
-        for chunk in chunks:
-            tasks.append(
-                executor.submit(
-                    batch_transcribe,
-                    files=chunk,
-                    model_size=model_size,
-                    model_type=model_type,
-                    lang=lang,
-                    pos=len(tasks),
+    for idx, i_chunk in enumerate(chunks):
+        logger.info(f"starting processing '{idx}-rd i_chunk.'")
+        chunk_threads = split_list(i_chunk, num_workers)
+        with ProcessPoolExecutor(mp_context=mp.get_context("spawn")) as executor:
+            tasks = []
+            for _chunk in chunk_threads:
+                tasks.append(
+                    executor.submit(
+                        batch_transcribe,
+                        files=_chunk,
+                        model_size=model_size,
+                        model_type=model_type,
+                        lang=lang,
+                        pos=len(tasks),
+                    )
                 )
-            )
-        results = {}
-        for task in tasks:
-            ret = task.result()
-            for res in ret.keys():
-                results[res] = ret[res]
+            results = {}
+            for task in tasks:
+                ret = task.result()
+                for res in ret.keys():
+                    results[res] = ret[res]
 
-        logger.info("Output to .lab file")
-        for file in tqdm(results.keys()):
-            path = replace_lastest(file, ".wav", ".lab")
-            # logger.info(path)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(results[file])
+            logger.info("Output to .lab file")
+            for file in tqdm(results.keys()):
+                path = replace_lastest(file, ".wav", ".lab")
+                # logger.info(path)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(results[file])

@@ -36,6 +36,14 @@ def split_list(lst, n):
     return [lst[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n)]
 
 
+def split_list_m(lst, n):
+    if len(lst) < n:
+        return [lst]
+
+    m = (len(lst) + n - 1) // n  # 向上取整计算总块数
+    return [lst[i * n : (i + 1) * n] for i in range(m)]
+
+
 def list_files(
     path: Union[Path, str],
     extensions: set[str] = None,
