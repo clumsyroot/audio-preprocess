@@ -1,4 +1,4 @@
- import multiprocessing as mp
+import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 
 import click
