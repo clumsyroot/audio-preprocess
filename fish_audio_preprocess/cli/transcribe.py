@@ -15,16 +15,11 @@ def replace_lastest(string, old, new):
 
 
 @click.command()
-@click.argument("--source", type=click.Choice(["file", "dir"], case_sensitive=False))
+@click.argument("source", type=click.Choice(["file", "dir"], case_sensitive=False))
 # @click.argument("input_dir", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "--file",
+    "--wav_source",
     help="File path which saved wav list",
-    type=str,
-)
-@click.option(
-    "--dir",
-    help="dir path which saved wav list",
     type=str,
 )
 @click.option(
@@ -69,8 +64,7 @@ def replace_lastest(string, old, new):
 )
 def transcribe(
     source: str,
-    file_list: str,
-    input_dir: str,
+    wav_source: str,
     num_workers: int,
     chunk_size: int,
     lang: str,
@@ -100,13 +94,13 @@ def transcribe(
         )
     logger.info(f"Using {num_workers} workers for processing")
     if source == "file":
-        logger.info(f"Transcribing audio files in '{file_list}'")
+        logger.info(f"Transcribing audio files in file list '{wav_source}'")
         # 扫描出所有的音频文件
-        audio_files = [line.strip() for line in open(file_list, "r", encoding="UTF8").readlines()]
+        audio_files = [line.strip() for line in open(wav_source, "r", encoding="UTF8").readlines()]
     elif source == "dir":
-        logger.info(f"Transcribing audio files in '{input_dir}'")
+        logger.info(f"Transcribing audio files in wav dir'{wav_source}'")
         # 扫描出所有的音频文件
-        audio_files = list_files(input_dir, recursive=recursive)
+        audio_files = list_files(wav_source, recursive=recursive)
         audio_files = [str(file) for file in audio_files if file.suffix in AUDIO_EXTENSIONS]
 
     if len(audio_files) == 0:
