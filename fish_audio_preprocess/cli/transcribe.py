@@ -19,7 +19,7 @@ def replace_lastest(string, old, new):
 # @click.argument("input_dir", type=click.Path(exists=True, file_okay=False))
 @click.option(
     "--wav_source",
-    help="File path which saved wav list",
+    help="Where are the audio files saved, file list or folder",
     type=str,
 )
 @click.option(
@@ -53,7 +53,7 @@ def replace_lastest(string, old, new):
 )
 @click.option(
     "--recursive/--no-recursive",
-    default=False,
+    default=True,
     help="Search recursively",
 )
 @click.option(
@@ -112,7 +112,7 @@ def transcribe(
     logger.info(f"splited to '{len(chunks)}'")
 
     for idx, i_chunk in enumerate(chunks):
-        logger.info(f"starting processing '{idx}-rd i_chunk.'")
+        logger.info(f"starting processing '{idx}-rd i_chunk', total: {len(i_chunk)}.")
         chunk_threads = split_list(i_chunk, num_workers)
         with ProcessPoolExecutor(mp_context=mp.get_context("spawn")) as executor:
             tasks = []

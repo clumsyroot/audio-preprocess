@@ -28,9 +28,7 @@ def batch_transcribe(
         model = whisper.load_model(model_size)
         for file in tqdm(files, position=pos):
             if lang in PROMPT:
-                result = model.transcribe(
-                    file, language=lang, initial_prompt=PROMPT[lang]
-                )
+                result = model.transcribe(file, language=lang, initial_prompt=PROMPT[lang])
             else:
                 result = model.transcribe(file, language=lang)
             results[str(file)] = result["text"]
@@ -46,12 +44,14 @@ def batch_transcribe(
             disable_pbar=True,
         )
         for file in tqdm(files, position=pos):
-            if lang in PROMPT:
-                result = model.generate(
-                    input=file, batch_size_s=300, hotword=PROMPT[lang]
-                )
-            else:
-                result = model.generate(input=file, batch_size_s=300)
+            try:
+                if lang in PROMPT:
+                    result = model.generate(input=file, batch_size_s=300, hotword=PROMPT[lang])
+                else:
+                    result = model.generate(input=file, batch_size_s=300)
+            except:
+                logger.error(f"file error: {file}")
+                continue
             # print(result)
             if isinstance(result, list):
                 results[str(file)] = "".join([item["text"] for item in result])
