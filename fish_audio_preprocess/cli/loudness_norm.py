@@ -10,15 +10,12 @@ from fish_audio_preprocess.utils.file import AUDIO_EXTENSIONS, list_files, make_
 
 
 @click.command()
-@click.argument("input_dir", type=click.Path(exists=True, file_okay=False))
+@click.argument("source", type=click.Choice(["file", "dir"], case_sensitive=False))
+@click.argument("input_dir", type=click.Path(exists=False, file_okay=False))
 @click.argument("output_dir", type=click.Path(exists=False, file_okay=False))
+@click.option("--wav-source", help="Where are the audio files saved, file list or folder", type=str)
 @click.option("--recursive/--no-recursive", default=True, help="Search recursively")
-@click.option(
-    "--overwrite/--no-overwrite", default=False, help="Overwrite existing files"
-)
-@click.option(
-    "--clean/--no-clean", default=False, help="Clean output directory before processing"
-)
+@click.option("--overwrite/--no-overwrite", default=False, help="Overwrite existing files")
 @click.option(
     "--peak",
     help="Peak normalize audio to -1 dB",
@@ -48,11 +45,12 @@ from fish_audio_preprocess.utils.file import AUDIO_EXTENSIONS, list_files, make_
     type=int,
 )
 def loudness_norm(
+    source: str,
+    wav_source: str,
     input_dir: str,
     output_dir: str,
     recursive: bool,
     overwrite: bool,
-    clean: bool,
     peak: float,
     loudness: float,
     block_size: float,
@@ -62,15 +60,25 @@ def loudness_norm(
 
     from fish_audio_preprocess.utils.loudness_norm import loudness_norm_file
 
-    input_dir, output_dir = Path(input_dir), Path(output_dir)
+    # input_dir, output_dir = Path(input_dir), Path(output_dir)
 
-    if input_dir == output_dir and clean:
-        logger.error("You are trying to clean the input directory, aborting")
-        return
+    # if input_dir == output_dir and clean:
+    #     logger.error("You are trying to clean the input directory, aborting")
+    #     return
 
-    make_dirs(output_dir, clean)
+    make_dirs(output_dir)
 
-    files = list_files(input_dir, extensions=AUDIO_EXTENSIONS, recursive=recursive)
+    logger.info(f"normalizing audio files in wav dir '{input_dir}'")
+    if source == "file":
+        # 从文件中读取音频文件列表
+        files = [
+            Path(line.strip().split("|")[0]) for line in open(wav_source, "r", encoding="UTF8").readlines()
+        ]
+    elif source == "dir":
+        # 扫描出所有的音频文件
+        files = list_files(wav_source, recursive=recursive)
+        files = [str(file) for file in files if file.suffix in AUDIO_EXTENSIONS]
+
     logger.info(f"Found {len(files)} files, normalizing loudness")
 
     skipped = 0
@@ -90,11 +98,7 @@ def loudness_norm(
                 skipped += 1
                 continue
 
-            tasks.append(
-                executor.submit(
-                    loudness_norm_file, file, new_file, peak, loudness, block_size
-                )
-            )
+            tasks.append(executor.submit(loudness_norm_file, file, new_file, peak, loudness, block_size))
 
         for i in tqdm(as_completed(tasks), total=len(tasks), desc="Processing"):
             assert i.exception() is None, i.exception()

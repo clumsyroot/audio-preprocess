@@ -16,9 +16,8 @@ def replace_lastest(string, old, new):
 
 @click.command()
 @click.argument("source", type=click.Choice(["file", "dir"], case_sensitive=False))
-# @click.argument("input_dir", type=click.Path(exists=True, file_okay=False))
 @click.option(
-    "--wav_source",
+    "--wav-source",
     help="Where are the audio files saved, file list or folder",
     type=str,
 )

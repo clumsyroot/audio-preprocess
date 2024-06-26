@@ -6,9 +6,7 @@ import pyloudnorm as pyln
 import soundfile as sf
 
 
-def loudness_norm(
-    audio: np.ndarray, rate: int, peak=-1.0, loudness=-23.0, block_size=0.400
-) -> np.ndarray:
+def loudness_norm(audio: np.ndarray, rate: int, peak=-1.0, loudness=-23.0, block_size=0.400) -> np.ndarray:
     """
     Perform loudness normalization (ITU-R BS.1770-4) on audio files.
 
@@ -55,7 +53,9 @@ def loudness_norm_file(
     # https://github.com/librosa/librosa/issues/1236
 
     input_file, output_file = str(input_file), str(output_file)
-
-    audio, rate = sf.read(input_file)
-    audio = loudness_norm(audio, rate, peak, loudness, block_size)
-    sf.write(output_file, audio, rate)
+    try:
+        audio, rate = sf.read(input_file)
+        audio = loudness_norm(audio, rate, peak, loudness, block_size)
+        sf.write(output_file, audio, rate)
+    except Exception as e:
+        print(e)
