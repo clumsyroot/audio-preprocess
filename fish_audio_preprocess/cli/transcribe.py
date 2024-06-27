@@ -93,14 +93,14 @@ def transcribe(
         )
     logger.info(f"Using {num_workers} workers for processing")
     if source == "file":
-        logger.info(f"Transcribing audio files in file list '{wav_source}', total: {len(audio_files)}")
         # 扫描出所有的音频文件
         audio_files = [line.strip() for line in open(wav_source, "r", encoding="UTF8").readlines()]
+        logger.info(f"Transcribing audio files in file list '{wav_source}', total: {len(audio_files)}.")
     elif source == "dir":
-        logger.info(f"Transcribing audio files in wav dir '{wav_source}'")
         # 扫描出所有的音频文件
         audio_files = list_files(wav_source, recursive=recursive)
         audio_files = [str(file) for file in audio_files if file.suffix in AUDIO_EXTENSIONS]
+        logger.info(f"Transcribing audio files in wav dir '{wav_source}', total: {len(audio_files)}.")
 
     if len(audio_files) == 0:
         logger.error(f"No audio files found in source.")
